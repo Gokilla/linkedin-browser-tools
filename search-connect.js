@@ -3,32 +3,17 @@
   let totalConnected = 0;
 
   async function clickConnectButtons() {
-    // LinkedIn uses aria-label="Invite X to connect" on search results page
-    const buttons = [...document.querySelectorAll('button')]
-      .filter(btn => {
-        const label = btn.getAttribute('aria-label') || '';
-        const text = btn.innerText.trim();
-        return (
-          label.toLowerCase().includes('invite') ||
-          label.toLowerCase().includes('connect') ||
-          text === 'Connect'
-        );
-      })
-      // Skip "Pending" / "Message" / "Follow" buttons
-      .filter(btn => !btn.innerText.toLowerCase().includes('pending'))
-      .filter(btn => !btn.innerText.toLowerCase().includes('message'))
-      .filter(btn => !btn.innerText.toLowerCase().includes('follow'));
+    // On search results page, Connect buttons are <a> tags with aria-label="Invite X to connect"
+    const connectLinks = [...document.querySelectorAll('a[aria-label*="Invite"][aria-label*="connect"]')];
 
-    console.log(`Found Connect buttons: ${buttons.length}`);
+    console.log(`Found Connect links: ${connectLinks.length}`);
 
-    for (const btn of buttons) {
-      if (btn.disabled) continue;
-
+    for (const link of connectLinks) {
       try {
-        btn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        link.scrollIntoView({ behavior: 'smooth', block: 'center' });
         await delay(500);
-        btn.click();
-        await delay(1000);
+        link.click();
+        await delay(1200);
 
         // Handle "Send without a note" dialog
         const sendBtn = document.querySelector('button[aria-label="Send without a note"]')
@@ -39,7 +24,12 @@
 
         if (sendBtn) {
           sendBtn.click();
-          await delay(500);
+          await delay(600);
+          console.log(`✅ Sent: ${++totalConnected}`);
+        } else {
+          // No dialog — request was sent directly, or dialog has different content
+          totalConnected++;
+          console.log(`✅ Sent: ${totalConnected}`);
         }
 
         // Close any leftover dialog
@@ -50,10 +40,8 @@
           await delay(300);
         }
 
-        totalConnected++;
-        console.log(`✅ Sent: ${totalConnected}`);
       } catch (e) {
-        console.warn('Error on button:', e);
+        console.warn('Error:', e);
       }
 
       await delay(1500);
@@ -61,11 +49,13 @@
   }
 
   async function goToNextPage() {
-    // Try button first, then anchor tag
-    const nextBtn = document.querySelector('button[aria-label="Next"]')
-      || [...document.querySelectorAll('a')].find(a => a.getAttribute('aria-label') === 'Next');
+    // LinkedIn search uses data-testid for pagination
+    const nextBtn = document.querySelector('[data-testid="pagination-controls-next-button-visible"]')
+      || document.querySelector('button[aria-label="Next"]');
 
     if (nextBtn && !nextBtn.disabled) {
+      nextBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      await delay(300);
       nextBtn.click();
       console.log('➡️ Going to next page...');
       await delay(3500);
@@ -79,7 +69,6 @@
   for (let page = 1; page <= maxPages; page++) {
     console.log(`📄 Page ${page}/${maxPages}`);
 
-    // Scroll to load all cards
     window.scrollTo(0, 0);
     await delay(600);
     window.scrollTo(0, document.body.scrollHeight);
